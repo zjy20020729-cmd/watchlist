@@ -1,4 +1,4 @@
-from flask import Flask, render_template, url_for
+from flask import Flask, render_template, url_for, request, redirect, flash
 from markupsafe import escape
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import String, select, func
@@ -15,7 +15,8 @@ SQLITE_PREFIX = 'sqlite:///' if sys.platform.startswith('win') else 'sqlite:////
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = SQLITE_PREFIX + str(Path(app.root_path) / 'data.db')
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False  # 关闭追踪修改（提高性能）
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SECRET_KEY'] = 'dev'  # 用于 flash 消息的加密
 
 db = SQLAlchemy(app, model_class=Base)
 
@@ -30,6 +31,17 @@ class Movie(db.Model):
     id: Mapped[int] = mapped_column(primary_key=True)
     title: Mapped[str] = mapped_column(String(60))
     year: Mapped[str] = mapped_column(String(4))
+
+# ----- 模板上下文处理器（自动注入 user） -----
+@app.context_processor
+def inject_user():
+    user = db.session.execute(select(User)).scalar()
+    return dict(user=user)
+
+# ----- 自定义错误页面 -----
+@app.errorhandler(404)
+def page_not_found(error):
+    return render_template('404.html'), 404
 
 # ----- 自定义命令：初始化数据库 -----
 @app.cli.command('init-db')
@@ -71,23 +83,55 @@ def forge():
     db.session.commit()
     click.echo('Done.')
 
-# ----- 主页路由（读取数据库） -----
-@app.context_processor
-def inject_user():
-    user = db.session.execute(select(User)).scalar()
-    return dict(user=user)
-@app.errorhandler(404)
-def page_not_found(error):
-    return render_template('404.html'), 404
-@app.route('/')
-@app.route('/index')
-@app.route('/home')
+# ----- 主页路由（GET 显示列表，POST 添加新电影） -----
+@app.route('/', methods=['GET', 'POST'])
+@app.route('/index', methods=['GET', 'POST'])
+@app.route('/home', methods=['GET', 'POST'])
 def index():
-    user = db.session.execute(select(User)).scalar()
-    movies = db.session.execute(select(Movie)).scalars().all()
-    return render_template('index.html', user=user, movies=movies)
+    if request.method == 'POST':
+        title = request.form.get('title').strip()
+        year = request.form.get('year').strip()
+        if not title or not year or len(year) != 4 or len(title) > 60:
+            flash('Invalid input.')
+            return redirect(url_for('index'))
+        movie = Movie(title=title, year=year)
+        db.session.add(movie)
+        db.session.commit()
+        flash('Item created.')
+        return redirect(url_for('index'))
 
-# ----- 其他路由（可选） -----
+    movies = db.session.execute(select(Movie)).scalars().all()
+    return render_template('index.html', movies=movies)
+
+# ----- 编辑电影条目 -----
+@app.route('/movie/edit/<int:movie_id>', methods=['GET', 'POST'])
+def edit(movie_id):
+    movie = db.get_or_404(Movie, movie_id)
+
+    if request.method == 'POST':
+        title = request.form.get('title').strip()
+        year = request.form.get('year').strip()
+        if not title or not year or len(year) != 4 or len(title) > 60:
+            flash('Invalid input.')
+            return redirect(url_for('edit', movie_id=movie_id))
+        movie.title = title
+        movie.year = year
+        db.session.commit()
+        flash('Item updated.')
+        return redirect(url_for('index'))
+
+    return render_template('edit.html', movie=movie)
+
+# ----- 删除电影条目 -----
+@app.route('/movie/delete/<int:movie_id>', methods=['POST'])
+def delete(movie_id):
+    movie = db.get_or_404(Movie, movie_id)
+    db.session.delete(movie)
+    db.session.commit()
+    flash('Item deleted.')
+    return redirect(url_for('index'))
+
+# ----- 其他测试路由（可选，保留供学习） -----
 @app.route('/user/<name>')
 def user(name):
     return f'Hello, {escape(name)}!'
