@@ -1,0 +1,15 @@
+*.pyc
+*~
+__pycache__
+.DS_Store
+.venv
+.cache
+.config
+.local
+.ssh
+.bashrc
+.profile
+.zshrc
+.motd_shown
+.gitconfig
+
