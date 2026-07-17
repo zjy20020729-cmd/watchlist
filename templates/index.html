@@ -3,16 +3,27 @@
 <head>
     <meta charset="utf-8">
     <title>{{ name }}'s Watchlist</title>
+    <!-- 添加 Favicon -->
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <!-- 添加 CSS 文件 -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" type="text/css">
 </head>
 <body>
-    <h2>{{ name }}'s Watchlist</h2>
+    <h2>
+        <!-- 头像添加 class="avatar" -->
+        <img alt="Avatar" class="avatar" src="{{ url_for('static', filename='images/avatar.png') }}">
+        {{ name }}'s Watchlist
+    </h2>
     <p>{{ movies|length }} Titles</p>
-    <ul>
+    <!-- 电影列表添加 class="movie-list" -->
+    <ul class="movie-list">
         {% for movie in movies %}
         <li>{{ movie.title }} - {{ movie.year }}</li>
         {% endfor %}
     </ul>
     <footer>
+        <!-- 龙猫动图添加 class="totoro" -->
+        <img alt="Walking Totoro" class="totoro" src="{{ url_for('static', filename='images/totoro.gif') }}">
         <small>&copy; 2025 <a href="http://helloflask.com/book/3">HelloFlask</a></small>
     </footer>
 </body>
