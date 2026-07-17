@@ -13,3 +13,4 @@ __pycache__
 .motd_shown
 .gitconfig
 
+.env
