@@ -72,6 +72,13 @@ def forge():
     click.echo('Done.')
 
 # ----- 主页路由（读取数据库） -----
+@app.context_processor
+def inject_user():
+    user = db.session.execute(select(User)).scalar()
+    return dict(user=user)
+@app.errorhandler(404)
+def page_not_found(error):
+    return render_template('404.html'), 404
 @app.route('/')
 @app.route('/index')
 @app.route('/home')
